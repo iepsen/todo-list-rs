@@ -1,12 +1,15 @@
 use std::cell::Cell;
 
 use gtk::glib;
+use gtk::glib::Properties;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 
 // Object holding the state
-#[derive(Default)]
+#[derive(Properties, Default)]
+#[properties(wrapper_type = super::CustomButton)]
 pub struct CustomButton {
+    #[property(get, set)]
     number: Cell<i32>,
 }
 
@@ -19,20 +22,24 @@ impl ObjectSubclass for CustomButton {
 }
 
 // Trait shared by all GObjects
+#[glib::derived_properties]
 impl ObjectImpl for CustomButton {
     fn constructed(&self) {
         self.parent_constructed();
-        self.obj().set_label(&self.number.get().to_string());
+
+        let obj = self.obj();
+        obj.bind_property("number", obj.as_ref(), "label")
+            .sync_create()
+            .build();
     }
 }
-
 // Trait shared by all widgets
 impl WidgetImpl for CustomButton {}
 
 // Trait shared by all buttons
 impl ButtonImpl for CustomButton {
     fn clicked(&self) {
-        self.number.set(self.number.get() + 1);
-        self.obj().set_label(&self.number.get().to_string())
+        let incremented_number = self.obj().number() + 1;
+        self.obj().set_number(incremented_number);
     }
 }
