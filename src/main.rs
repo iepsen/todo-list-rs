@@ -1,12 +1,12 @@
 mod window;
 mod task_object;
 mod task_row;
+mod utils;
 
 use gtk::prelude::*;
 use gtk::{gio, glib, Application};
 use window::Window;
-
-const APP_ID: &str = "com.github.iepsen.todo-list-rs";
+use crate::utils::get_app_id;
 
 fn main() -> glib::ExitCode {
     // Register and include resources
@@ -14,7 +14,7 @@ fn main() -> glib::ExitCode {
         .expect("Failed to register resources.");
 
     // Create a new application
-    let app = Application::builder().application_id(APP_ID).build();
+    let app = Application::builder().application_id(get_app_id()).build();
 
     // Connect to "activate" signal of `app`
     app.connect_activate(build_ui);

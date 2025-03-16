@@ -1,12 +1,14 @@
 mod imp;
 
+use std::fs::File;
 use glib::{clone, Object};
 use gtk::subclass::prelude::*;
-use gtk::{gio, glib, Application, NoSelection, SignalListItemFactory};
+use gtk::{gio, glib, Application, CustomFilter, FilterListModel, NoSelection, SignalListItemFactory};
 use gtk::{prelude::*, ListItem};
-use gtk::gio::ActionEntry;
-use crate::task_object::TaskObject;
+use gtk::gio::{ActionEntry, Settings};
+use crate::task_object::{TaskData, TaskObject};
 use crate::task_row::TaskRow;
+use crate::utils::{data_path, get_app_id};
 
 // ANCHOR: glib_wrapper
 glib::wrapper! {
@@ -32,6 +34,90 @@ impl Window {
             .clone()
             .expect("Could not get current tasks.")
     }
+    // ANCHOR: new_task
+    fn new_task(&self) {
+        // Get content from entry and clear it
+        let buffer = self.imp().entry.buffer();
+        let content = buffer.text().to_string();
+        if content.is_empty() {
+            return;
+        }
+        buffer.set_text("");
+
+        // Add new task to model
+        let task = TaskObject::new(false, content);
+        self.tasks().append(&task);
+    }
+    // ANCHOR_END: new_task
+
+    fn remove_done_tasks(&self) {
+        let tasks = self.tasks();
+        let mut position = 0;
+        while let Some(item) = tasks.item(position) {
+            // Get `TaskObject` from `glib::Object`
+            let task_object = item
+                .downcast_ref::<TaskObject>()
+                .expect("The object needs to be of type `TaskObject`.");
+
+            if task_object.is_completed() {
+                tasks.remove(position);
+            } else {
+                position += 1;
+            }
+        }
+    }
+
+    fn filter(&self) -> Option<CustomFilter> {
+        // Get filter_state from settings
+        let filter_state: String = self.settings().get("filter");
+
+        // Create custom filters
+        let filter_open = CustomFilter::new(|obj| {
+            // Get `TaskObject` from `glib::Object`
+            let task_object = obj
+                .downcast_ref::<TaskObject>()
+                .expect("The object needs to be of type `TaskObject`.");
+
+            // Only allow completed tasks
+            !task_object.is_completed()
+        });
+        let filter_done = CustomFilter::new(|obj| {
+            // Get `TaskObject` from `glib::Object`
+            let task_object = obj
+                .downcast_ref::<TaskObject>()
+                .expect("The object needs to be of type `TaskObject`.");
+
+            // Only allow done tasks
+            task_object.is_completed()
+        });
+
+        // Return the correct filter
+        match filter_state.as_str() {
+            "All" => None,
+            "Open" => Some(filter_open),
+            "Done" => Some(filter_done),
+            _ => unreachable!(),
+        }
+    }
+
+    fn restore_data(&self) {
+        if let Ok(file) = File::open(data_path()) {
+            // Deserialize data from file to vector
+            let backup_data: Vec<TaskData> = serde_json::from_reader(file).expect(
+                "It should be possible to read `backup_data` from the json file.",
+            );
+
+            // Convert `Vec<TaskData>` to `Vec<TaskObject>`
+            let task_objects: Vec<TaskObject> = backup_data
+                .into_iter()
+                .map(TaskObject::from_task_data)
+                .collect();
+
+            // Insert restored objects into model
+            self.tasks().extend_from_slice(&task_objects);
+        }
+    }
+
 
     fn setup_tasks(&self) {
         // Create new model
@@ -41,8 +127,23 @@ impl Window {
         self.imp().tasks.replace(Some(model));
 
         // Wrap model with selection and pass it to the list view
-        let selection_model = NoSelection::new(Some(self.tasks()));
+        let filter_model = FilterListModel::new(Some(self.tasks()), self.filter());
+        let selection_model = NoSelection::new(Some(filter_model.clone()));
         self.imp().tasks_list.set_model(Some(&selection_model));
+
+        // Filter model whenever the value of the key "filter" changes
+        self.settings().connect_changed(
+            Some("filter"),
+            clone!(
+                #[weak(rename_to = window)]
+                self,
+                #[weak]
+                filter_model,
+                move |_, _| {
+                    filter_model.set_filter(window.filter().as_ref());
+                }
+            ),
+        );
     }
     // ANCHOR_END: tasks
 
@@ -70,6 +171,10 @@ impl Window {
 
     // ANCHOR: setup_actions
     fn setup_actions(&self) {
+        // Create action from key "filter" and add to action group "win"
+        let action_filter = self.settings().create_action("filter");
+        self.add_action(&action_filter);
+
         // Add action "close" to `window` taking no parameter
         let action_close = ActionEntry::builder("close")
             .activate(|window: &Window, _, _| {
@@ -77,25 +182,23 @@ impl Window {
             })
             .build();
         self.add_action_entries([action_close]);
-
     }
     // ANCHOR_END: setup_actions
 
-    // ANCHOR: new_task
-    fn new_task(&self) {
-        // Get content from entry and clear it
-        let buffer = self.imp().entry.buffer();
-        let content = buffer.text().to_string();
-        if content.is_empty() {
-            return;
-        }
-        buffer.set_text("");
-
-        // Add new task to model
-        let task = TaskObject::new(false, content);
-        self.tasks().append(&task);
+    fn setup_settings(&self) {
+        let settings = Settings::new(get_app_id());
+        self.imp()
+            .settings
+            .set(settings)
+            .expect("`settings` should not be set before calling `setup_settings`.");
     }
-    // ANCHOR_END: new_task
+
+    fn settings(&self) -> &Settings {
+        self.imp()
+            .settings
+            .get()
+            .expect("`settings` should be set in `setup_settings`.")
+    }
 
     // ANCHOR: setup_factory
     fn setup_factory(&self) {
