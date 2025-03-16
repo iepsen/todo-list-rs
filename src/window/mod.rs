@@ -3,7 +3,7 @@ mod imp;
 use std::fs::File;
 use glib::{clone, Object};
 use gtk::subclass::prelude::*;
-use gtk::{gio, glib, Application, CustomFilter, FilterListModel, NoSelection, SignalListItemFactory};
+use gtk::{gio, glib, CustomFilter, FilterListModel, NoSelection, SignalListItemFactory};
 use gtk::{prelude::*, ListItem};
 use gtk::gio::{ActionEntry, Settings};
 use crate::task_object::{TaskData, TaskObject};
@@ -20,7 +20,7 @@ glib::wrapper! {
 // ANCHOR_END: glib_wrapper
 
 impl Window {
-    pub fn new(app: &Application) -> Self {
+    pub fn new(app: &adw::Application) -> Self {
         // Create new window
         Object::builder().property("application", app).build()
     }

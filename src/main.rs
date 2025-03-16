@@ -4,7 +4,7 @@ mod task_row;
 mod utils;
 
 use gtk::prelude::*;
-use gtk::{gio, glib, Application};
+use gtk::{gio, glib};
 use window::Window;
 use crate::utils::get_app_id;
 
@@ -14,7 +14,7 @@ fn main() -> glib::ExitCode {
         .expect("Failed to register resources.");
 
     // Create a new application
-    let app = Application::builder().application_id(get_app_id()).build();
+    let app = adw::Application::builder().application_id(get_app_id()).build();
 
     // Connect to "activate" signal of `app`
     app.connect_startup(setup_shortcuts);
@@ -28,13 +28,13 @@ fn main() -> glib::ExitCode {
 }
 
 // ANCHOR: build_ui
-fn build_ui(app: &Application) {
+fn build_ui(app: &adw::Application) {
     // Create new window and present it
     let window = Window::new(app);
     window.present();
 }
 
-fn setup_shortcuts(app: &Application) {
+fn setup_shortcuts(app: &adw::Application) {
     app.set_accels_for_action("win.filter('All')", &["<Ctrl>a", "<Meta>a"]);
     app.set_accels_for_action("win.filter('Open')", &["<Ctrl>o", "<Meta>o"]);
     app.set_accels_for_action("win.filter('Done')", &["<Ctrl>d", "<Meta>d"]);
