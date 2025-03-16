@@ -45,6 +45,7 @@ impl ObjectImpl for Window {
         let obj = self.obj();
         obj.setup_tasks();
         obj.setup_callbacks();
+        obj.setup_actions();
         obj.setup_factory();
     }
 }

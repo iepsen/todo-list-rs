@@ -4,7 +4,7 @@ use glib::{clone, Object};
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib, Application, NoSelection, SignalListItemFactory};
 use gtk::{prelude::*, ListItem};
-
+use gtk::gio::ActionEntry;
 use crate::task_object::TaskObject;
 use crate::task_row::TaskRow;
 
@@ -67,6 +67,19 @@ impl Window {
         ));
     }
     // ANCHOR_END: setup_callbacks
+
+    // ANCHOR: setup_actions
+    fn setup_actions(&self) {
+        // Add action "close" to `window` taking no parameter
+        let action_close = ActionEntry::builder("close")
+            .activate(|window: &Window, _, _| {
+                window.close();
+            })
+            .build();
+        self.add_action_entries([action_close]);
+
+    }
+    // ANCHOR_END: setup_actions
 
     // ANCHOR: new_task
     fn new_task(&self) {

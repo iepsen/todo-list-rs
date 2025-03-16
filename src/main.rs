@@ -19,6 +19,9 @@ fn main() -> glib::ExitCode {
     // Connect to "activate" signal of `app`
     app.connect_activate(build_ui);
 
+    // Set keyboard accelerator to trigger "win.close".
+    app.set_accels_for_action("win.close", &["<Ctrl>W", "<Meta>Q"]);
+
     // Run the application
     app.run()
 }
